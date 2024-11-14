@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TaskManagerApi.Models;
 
@@ -12,10 +14,19 @@ public enum TaskStatus
 public class Task
 {
     public int Id { get; set; }
+
+    [Required, MaxLength(200)]
     public required string Name { get; set; }
-    public string Description { get; set; } = String.Empty;
-    [JsonConverter(typeof(JsonStringEnumConverter))] public required TaskStatus Status { get; set; }
-    public string AssignedTo { get; set; } = String.Empty;
+
+    [MaxLength(1000)]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [Column(TypeName = "nvarchar(30)")]
+    public required TaskStatus Status { get; set; }
+
+    [MaxLength(50)]
+    public string AssignedTo { get; set; } = string.Empty;
 
     public Task() { }
 }

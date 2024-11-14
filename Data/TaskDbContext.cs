@@ -10,4 +10,11 @@ public class TaskDbContext : DbContext
     }
 
     public DbSet<Models.Task> Tasks { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Task>()
+            .Property(t => t.Status)
+            .HasConversion<string>();
+    }
 }
