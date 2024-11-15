@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace TaskManagerApi.Data;
 
@@ -13,7 +14,11 @@ public class TaskDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Task>()
+        modelBuilder.Entity<Models.Task>()
+        .Property(t => t.Id)
+        .ValueGeneratedOnAdd();
+
+        modelBuilder.Entity<Models.Task>()
             .Property(t => t.Status)
             .HasConversion<string>();
     }

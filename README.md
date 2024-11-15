@@ -2,8 +2,12 @@
 
 ## Setup
 ```
- dotnet new webapi --name TaskManagementSystem --output .
- ```
+dotnet new webapi --name TaskManagementSystem --output .
+```
+
+```
+dotnet tool install --global dotnet-ef
+```
 
 
 ## Issues
@@ -14,4 +18,7 @@
 2. Used Task<IActionResult> as return type for GET endpoint in order to have better control of HTTP response type.
 3. Used `ProducesResponseType` in order to get better response description in Swagger UI.
 4. Used dotnet new gitignore
-5. 
+5. Used Task directly in POST endpoint for simplicity. Could be replaced by DTO (mapping to Task needed).
+6. For status update got inspiration from https://stackoverflow.com/a/31519167. Using PATCH. Returning updated Task object.
+7. Added `MaxLength` attributes for Task props in order to avoid VARCHAR(MAX) in generated tabele.
+8. 
