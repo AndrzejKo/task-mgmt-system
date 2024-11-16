@@ -40,6 +40,12 @@ public class TasksController(ILogger<TasksController> logger, ITaskService taskS
     [HttpPut("{id}/status", Name = "UpdateTaskStatus")]
     public async Task<IActionResult> UpdateTaskStatus(int id, [FromBody] ApiModels.UpdateTaskStatusDto updateTaskStatus)
     {
+        var existingTask = await taskService.GetTaskByIdAsync(id);
+        if (existingTask == null)
+        {
+            return NotFound();
+        }
+
         var updateRequest = new UpdateTaskStatusAction { TaskId = id, NewStatus = updateTaskStatus.NewStatus };
 
         await serviceBusHandler.SendTaskStatusUpdateActionAsync(updateRequest);

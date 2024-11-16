@@ -11,6 +11,11 @@ public class TaskService(ITaskRepository taskRepository) : ITaskService
         return await taskRepository.CreateTaskAsync(newTask);
     }
 
+    public async Task<Entities.Task?> GetTaskByIdAsync(int id)
+    {
+        return await taskRepository.GetTaskByIdAsync(id);
+    }
+
     public async Task<IEnumerable<Entities.Task>> GetTasksAsync()
     {
         return await taskRepository.GetTasksAsync();
