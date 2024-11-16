@@ -19,4 +19,5 @@ dotnet tool install --global dotnet-ef
 3. Used `ProducesResponseType` in order to get better response description in Swagger UI.
 4. Used dotnet new gitignore
 5. Added `MaxLength` attributes for Task props in order to avoid VARCHAR(MAX) in generated tabele.
-6. 
+6. Used xUnit as testing framework.
+7. 

@@ -43,6 +43,8 @@ public class TasksController(ILogger<TasksController> logger, ITaskService taskS
         var existingTask = await taskService.GetTaskByIdAsync(id);
         if (existingTask == null)
         {
+            logger.LogError("Task {Id} not found", id);
+            
             return NotFound();
         }
 

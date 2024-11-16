@@ -178,7 +178,7 @@ public class ServiceBusHandler : BackgroundService
         }
     }
 
-    private async Task PublishTaskCompletedEventAsync(Events.TaskCompletedEvent taskCompletedEvent)
+    public async Task PublishTaskCompletedEventAsync(Events.TaskCompletedEvent taskCompletedEvent)
     {
         int delayMilliseconds = DelayMilliseconds;
 
