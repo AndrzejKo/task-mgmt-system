@@ -2,9 +2,9 @@ using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace TaskManagerApi.Models;
+namespace TaskManagerApi.Models.Entities;
 
-public enum TaskStatus
+public enum Status
 {
     NotStarted,
     InProgress,
@@ -23,7 +23,7 @@ public class Task
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [Column(TypeName = "nvarchar(30)")]
-    public required TaskStatus Status { get; set; }
+    public required Status Status { get; set; }
 
     [MaxLength(50)]
     public string AssignedTo { get; set; } = string.Empty;

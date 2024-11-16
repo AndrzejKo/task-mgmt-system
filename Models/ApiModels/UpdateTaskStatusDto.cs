@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 
-namespace TaskManagerApi.Dtos;
+namespace TaskManagerApi.Models.ApiModels;
 
 public class UpdateTaskStatusDto
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public required Models.TaskStatus NewStatus { get; set; }
+    public required Entities.Status NewStatus { get; set; }
 }

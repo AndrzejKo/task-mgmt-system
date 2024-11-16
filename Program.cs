@@ -1,18 +1,31 @@
 using Microsoft.EntityFrameworkCore;
-using TaskManagerApi.Data;
+using TaskManagerApi.DataAccess;
+using Azure.Messaging.ServiceBus;
+using TaskManagerApi.Services;
+using TaskManagerApi.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<TaskDbContext>(options => {
+builder.Services.AddDbContext<TaskDbContext>(options =>
+{
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default"));
 });
+
+builder.Services.AddScoped<ITaskRepository, TaskRepository>();
+builder.Services.AddScoped<ITaskService, TaskService>();
+
+builder.Services.AddSingleton<ServiceBusClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("ServiceBus");
+    return new ServiceBusClient(connectionString);
+});
+
+builder.Services.AddSingleton<ServiceBusHandler>();
+builder.Services.AddHostedService<ServiceBusHandler>();
 
 var app = builder.Build();
 

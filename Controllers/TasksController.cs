@@ -1,73 +1,47 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TaskManagerApi.Data;
-using TaskManagerApi.Dtos;
+using Entities = TaskManagerApi.Models.Entities;
+using ApiModels = TaskManagerApi.Models.ApiModels;
+using TaskManagerApi.Services;
+using TaskManagerApi.Models.Actions;
+using TaskManagerApi.Mappers;
 namespace TaskManagerApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class TasksController : ControllerBase
+public class TasksController(ILogger<WeatherForecastController> logger, ITaskService taskService, ServiceBusHandler serviceBusHandler) : ControllerBase
 {
-    private readonly ILogger<WeatherForecastController> _logger;
-    private readonly TaskDbContext _taskDbContext;
-
-    public TasksController(ILogger<WeatherForecastController> logger, TaskDbContext taskDbContext)
-    {
-        _logger = logger;
-        _taskDbContext = taskDbContext;
-    }
-
-
     [HttpGet(Name = "GetTasks")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<Models.Task>))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<ApiModels.TaskDto>))]
     public async Task<IActionResult> Get()
     {
-        var tasks = await _taskDbContext.Tasks.ToListAsync();
+        var tasks = await taskService.GetTasksAsync();
+        var taskDtos = tasks.Select(TaskMapper.MapTaskToTaskDto);
 
-        return Ok(tasks);
+        return Ok(taskDtos);
     }
 
-
     [HttpPost(Name = "PostTasks")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Models.Task))]
-    public async Task<IActionResult> CreateTask(Models.Task task)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PostTask(ApiModels.NewTaskDto newTask)
     {
-        task.Id = 0;
-        task.Status = Models.TaskStatus.NotStarted;
+        var task = new Entities.Task(){
+            Name = newTask.Name,
+            Description = newTask.Description,
+            AssignedTo = newTask.AssignedTo,
+            Status = Entities.Status.NotStarted
+        };
 
-        await _taskDbContext.AddAsync(task);
-        await _taskDbContext.SaveChangesAsync();
+        await taskService.CreateTaskAsync(task);
 
         return Created();
     }
 
-    [HttpPatch("{id:int}", Name = "UpdateTaskStatus")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Models.Task))]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> UpdateTaskStatus(int id, [FromBody] UpdateTaskStatusDto updateTaskStatusDto)
+    [HttpPut("{id}/status", Name = "UpdateTaskStatus")]
+    public async Task<IActionResult> UpdateTaskStatus(int id, [FromBody] ApiModels.UpdateTaskStatusDto updateTaskStatus)
     {
-        // Fetch the task from the database
-        var task = await _taskDbContext.Tasks.FindAsync(id);
-        if (task == null)
-        {
-            return NotFound($"Task with ID {id} not found.");
-        }
+        var updateRequest = new UpdateTaskStatusAction { TaskId = id, NewStatus = updateTaskStatus.NewStatus };
 
-        // Update the task status
-        task.Status = updateTaskStatusDto.NewStatus;
-
-        try
-        {
-            await _taskDbContext.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, $"Error updating task: {ex.Message}");
-        }
-
-        return Ok(task);
+        await serviceBusHandler.SendTaskStatusUpdateActionAsync(updateRequest);
+        return Ok();
     }
-
 }
