@@ -21,7 +21,19 @@ builder.Services.AddSingleton<ServiceBusClient>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var connectionString = configuration.GetConnectionString("ServiceBus");
-    return new ServiceBusClient(connectionString);
+
+    var clientOptions = new ServiceBusClientOptions
+    {
+        RetryOptions = new ServiceBusRetryOptions
+        {
+            Mode = ServiceBusRetryMode.Exponential,
+            MaxRetries = 5,
+            Delay = TimeSpan.FromSeconds(1),
+            MaxDelay = TimeSpan.FromSeconds(30)
+        }
+    };
+
+   return new ServiceBusClient(connectionString, clientOptions);
 });
 
 builder.Services.AddSingleton<ServiceBusHandler>();

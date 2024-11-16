@@ -8,6 +8,8 @@ namespace TaskManagerApi.Services;
 
 public class ServiceBusHandler : BackgroundService
 {
+    const int MaxRetries = 5;
+    const int DelayMilliseconds = 1000;
     private readonly ServiceBusClient serviceBusClient;
     private readonly IServiceScopeFactory serviceScopeFactory;
     private readonly ILogger<ServiceBusHandler> logger;
@@ -43,19 +45,33 @@ public class ServiceBusHandler : BackgroundService
 
     public async Task SendTaskStatusUpdateActionAsync(Actions.UpdateTaskStatusAction action)
     {
-        try
-        {
-            string messageBody = JsonSerializer.Serialize(action);
-            var serviceBusMessage = new ServiceBusMessage(messageBody);
-            await taskStatusUpdateReqSender.SendMessageAsync(serviceBusMessage);
+        int delayMilliseconds = DelayMilliseconds;
 
-            logger.LogInformation("Message sent successfully: {Message}", messageBody);
-        }
-        catch (Exception ex)
+        for (int retry = 0; retry < MaxRetries; retry++)
         {
-            logger.LogError(ex, "Failed to send message to Service Bus.");
-            throw;
+            try
+            {
+                string messageBody = JsonSerializer.Serialize(action);
+                var serviceBusMessage = new ServiceBusMessage(messageBody);
+                await taskStatusUpdateReqSender.SendMessageAsync(serviceBusMessage);
+
+                logger.LogInformation("Message sent successfully: {Message}", messageBody);
+                return;
+            }
+            catch (ServiceBusException ex) when (ex.IsTransient)
+            {
+                logger.LogWarning(ex, "Service Bus is busy or experiencing transient issues. Retrying in {Delay} milliseconds...", delayMilliseconds);
+                await Task.Delay(delayMilliseconds);
+                delayMilliseconds *= 2; // Exponential backoff
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send message to Service Bus.");
+                throw;
+            }
         }
+
+        logger.LogError("Exceeded maximum retry attempts. Failed to send message to Service Bus.");
     }
 
     public async Task ReceiveTaskStatusUpdateActionAsync(CancellationToken stoppingToken)
@@ -85,11 +101,7 @@ public class ServiceBusHandler : BackgroundService
                             CompletedAtUtc = DateTime.UtcNow
                         };
 
-                        string eventBody = JsonSerializer.Serialize(e);
-                        var serviceBusMessage = new ServiceBusMessage(eventBody);
-                        await taskCompletedEventPublisher.SendMessageAsync(serviceBusMessage);
-
-                        logger.LogInformation("Task completed event published successfully: {Message}", eventBody);
+                        await PublishTaskCompletedEventAsync(e);
                     }
                 }
                 else
@@ -164,5 +176,36 @@ public class ServiceBusHandler : BackgroundService
         {
             await Task.Delay(1000, stoppingToken);
         }
+    }
+
+    private async Task PublishTaskCompletedEventAsync(Events.TaskCompletedEvent taskCompletedEvent)
+    {
+        int delayMilliseconds = DelayMilliseconds;
+
+        for (int retry = 0; retry < MaxRetries; retry++)
+        {
+            try
+            {
+                string messageBody = JsonSerializer.Serialize(taskCompletedEvent);
+                var serviceBusMessage = new ServiceBusMessage(messageBody);
+                await taskCompletedEventPublisher.SendMessageAsync(serviceBusMessage);
+
+                logger.LogInformation("Task completed event published successfully: {Message}", messageBody);
+                return;
+            }
+            catch (ServiceBusException ex) when (ex.IsTransient)
+            {
+                logger.LogWarning(ex, "Service Bus is busy or experiencing transient issues. Retrying in {Delay} milliseconds...", delayMilliseconds);
+                await Task.Delay(delayMilliseconds);
+                delayMilliseconds *= 2; // Exponential backoff
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to publish event to Service Bus.");
+                throw;
+            }
+        }
+
+        logger.LogError("Exceeded maximum retry attempts. Failed to publish event to Service Bus.");
     }
 }
