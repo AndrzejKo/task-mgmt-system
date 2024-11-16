@@ -15,8 +15,8 @@ public class ServiceBusHandlerTests
     private readonly ILogger<ServiceBusHandler> _mockLogger;
     private readonly ServiceBusClient _mockServiceBusClient;
     private readonly IServiceScopeFactory _mockServiceScopeFactory;
-    private readonly ServiceBusSender _mockTaskStatusUpdateReqSender;
-    private readonly ServiceBusSender _mockTaskCompletedEventPublisher;
+    private readonly ServiceBusSender _mockTaskStatusUpdateActionSender;
+    private readonly ServiceBusSender _mockTaskStatusUpdatedEventPublisher;
 
     public ServiceBusHandlerTests()
     {
@@ -24,14 +24,14 @@ public class ServiceBusHandlerTests
         _mockLogger = A.Fake<ILogger<ServiceBusHandler>>();
         _mockServiceBusClient = A.Fake<ServiceBusClient>();
         _mockServiceScopeFactory = A.Fake<IServiceScopeFactory>();
-        _mockTaskStatusUpdateReqSender = A.Fake<ServiceBusSender>();
-        _mockTaskCompletedEventPublisher = A.Fake<ServiceBusSender>();
+        _mockTaskStatusUpdateActionSender = A.Fake<ServiceBusSender>();
+        _mockTaskStatusUpdatedEventPublisher = A.Fake<ServiceBusSender>();
 
         A.CallTo(() => _mockConfiguration["taskStatusUpdatesQueue"]).Returns("taskStatusUpdatesQueue");
         A.CallTo(() => _mockConfiguration["taskStatusUpdateEventsTopic"]).Returns("taskStatusUpdateEventsTopic");
 
-        A.CallTo(() => _mockServiceBusClient.CreateSender("taskStatusUpdatesQueue")).Returns(_mockTaskStatusUpdateReqSender);
-        A.CallTo(() => _mockServiceBusClient.CreateSender("taskStatusUpdateEventsTopic")).Returns(_mockTaskCompletedEventPublisher);
+        A.CallTo(() => _mockServiceBusClient.CreateSender("taskStatusUpdatesQueue")).Returns(_mockTaskStatusUpdateActionSender);
+        A.CallTo(() => _mockServiceBusClient.CreateSender("taskStatusUpdateEventsTopic")).Returns(_mockTaskStatusUpdatedEventPublisher);
 
         _serviceBusHandler = new ServiceBusHandler(_mockConfiguration, _mockLogger, _mockServiceBusClient, _mockServiceScopeFactory);
    
@@ -49,15 +49,15 @@ public class ServiceBusHandlerTests
         await _serviceBusHandler.SendTaskStatusUpdateActionAsync(action);
 
         // Assert
-        A.CallTo(() => _mockTaskStatusUpdateReqSender.SendMessageAsync(A<ServiceBusMessage>.That.Matches(m => m.Body.ToString() == messageBody), default))
+        A.CallTo(() => _mockTaskStatusUpdateActionSender.SendMessageAsync(A<ServiceBusMessage>.That.Matches(m => m.Body.ToString() == messageBody), default))
             .MustHaveHappenedOnceExactly();
     }
 
     [Fact]
-    public async Task PublishTaskCompletedEventAsync_PublishesEventSuccessfully()
+    public async Task PublishTaskStatusUpdatedEventAsync_PublishesEventSuccessfully()
     {
         // Arrange
-        var taskCompletedEvent = new TaskCompletedEvent { Id = 1, CompletedAtUtc = DateTime.UtcNow };
+        var taskCompletedEvent = new TaskStatusUpdatedEvent { Id = 1, CompletedAtUtc = DateTime.UtcNow };
         var messageBody = JsonSerializer.Serialize(taskCompletedEvent);
         var serviceBusMessage = new ServiceBusMessage(messageBody);
 
@@ -65,7 +65,7 @@ public class ServiceBusHandlerTests
         await _serviceBusHandler.PublishTaskCompletedEventAsync(taskCompletedEvent);
 
         // Assert
-        A.CallTo(() => _mockTaskCompletedEventPublisher.SendMessageAsync(A<ServiceBusMessage>.That.Matches(m => m.Body.ToString() == messageBody), default))
+        A.CallTo(() => _mockTaskStatusUpdatedEventPublisher.SendMessageAsync(A<ServiceBusMessage>.That.Matches(m => m.Body.ToString() == messageBody), default))
             .MustHaveHappenedOnceExactly();
     }
 }

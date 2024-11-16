@@ -17,8 +17,8 @@ public class ServiceBusHandler : BackgroundService
     private readonly ServiceBusSender taskStatusUpdateReqSender;
     private readonly ServiceBusSender taskCompletedEventPublisher;
     private string? taskStatusUpdatesQueue;
-    private string? taskStatusUpdateEventsTopic;
-    private string? taskStatusUpdateEventsSubscription;
+    private string? taskStatusUpdatedEventsTopic;
+    private string? taskStatusUpdatedEventsSubscription;
 
     public ServiceBusHandler(IConfiguration configuration, ILogger<ServiceBusHandler> logger, ServiceBusClient serviceBusClient,
         IServiceScopeFactory serviceScopeFactory)
@@ -28,17 +28,17 @@ public class ServiceBusHandler : BackgroundService
         this.logger = logger;
 
         taskStatusUpdatesQueue = configuration["taskStatusUpdatesQueue"];
-        taskStatusUpdateEventsTopic = configuration["taskStatusUpdateEventsTopic"];
-        taskStatusUpdateEventsSubscription = configuration["taskStatusUpdateEventsSubscription"];
+        taskStatusUpdatedEventsTopic = configuration["taskStatusUpdateEventsTopic"];
+        taskStatusUpdatedEventsSubscription = configuration["taskStatusUpdateEventsSubscription"];
 
         taskStatusUpdateReqSender = this.serviceBusClient.CreateSender(taskStatusUpdatesQueue);
-        taskCompletedEventPublisher = this.serviceBusClient.CreateSender(taskStatusUpdateEventsTopic);
+        taskCompletedEventPublisher = this.serviceBusClient.CreateSender(taskStatusUpdatedEventsTopic);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var taskStatusUpdateTask = ReceiveTaskStatusUpdateActionAsync(stoppingToken);
-        var taskCompletedEventsTask = ReceiveTaskCompletedEventsAsync(stoppingToken);
+        var taskCompletedEventsTask = ReceiveTaskStatusUpdatedEventsAsync(stoppingToken);
 
         await Task.WhenAll(taskStatusUpdateTask, taskCompletedEventsTask);
     }
@@ -93,16 +93,14 @@ public class ServiceBusHandler : BackgroundService
 
                     await taskService.UpdateTaskStatusAsync(updateRequest.TaskId, updateRequest.NewStatus);
 
-                    if (updateRequest.NewStatus == Entities.Status.Completed)
+                    var e = new Events.TaskStatusUpdatedEvent()
                     {
-                        var e = new Events.TaskCompletedEvent()
-                        {
-                            Id = updateRequest.TaskId,
-                            CompletedAtUtc = DateTime.UtcNow
-                        };
+                        Id = updateRequest.TaskId,
+                        NewStatus = updateRequest.NewStatus,
+                        CompletedAtUtc = DateTime.UtcNow
+                    };
 
-                        await PublishTaskCompletedEventAsync(e);
-                    }
+                    await PublishTaskCompletedEventAsync(e);
                 }
                 else
                 {
@@ -133,9 +131,9 @@ public class ServiceBusHandler : BackgroundService
         }
     }
 
-    public async Task ReceiveTaskCompletedEventsAsync(CancellationToken stoppingToken)
+    public async Task ReceiveTaskStatusUpdatedEventsAsync(CancellationToken stoppingToken)
     {
-        var processor = serviceBusClient.CreateProcessor(taskStatusUpdateEventsTopic, taskStatusUpdateEventsSubscription, new ServiceBusProcessorOptions());
+        var processor = serviceBusClient.CreateProcessor(taskStatusUpdatedEventsTopic, taskStatusUpdatedEventsSubscription, new ServiceBusProcessorOptions());
 
         processor.ProcessMessageAsync += async args =>
         {
@@ -144,10 +142,10 @@ public class ServiceBusHandler : BackgroundService
                 var messageBody = args.Message.Body.ToString();
                 logger.LogInformation("Event received: {Message}", messageBody);
 
-                var e = JsonSerializer.Deserialize<Events.TaskCompletedEvent>(messageBody);
+                var e = JsonSerializer.Deserialize<Events.TaskStatusUpdatedEvent>(messageBody);
                 if (e != null)
                 {
-                    logger.LogInformation("Task completed event received for task: {TaskId}. Completed at: {CompletedAtUtc}", e.Id, e.CompletedAtUtc);
+                    logger.LogInformation("Task status updated event received for task: {TaskId}. New status:{Status} At: {CompletedAtUtc}", e.Id, e.NewStatus, e.CompletedAtUtc);
                 }
                 else
                 {
@@ -178,7 +176,7 @@ public class ServiceBusHandler : BackgroundService
         }
     }
 
-    public async Task PublishTaskCompletedEventAsync(Events.TaskCompletedEvent taskCompletedEvent)
+    public async Task PublishTaskCompletedEventAsync(Events.TaskStatusUpdatedEvent taskStatusUpdatedEvent)
     {
         int delayMilliseconds = DelayMilliseconds;
 
@@ -186,11 +184,11 @@ public class ServiceBusHandler : BackgroundService
         {
             try
             {
-                string messageBody = JsonSerializer.Serialize(taskCompletedEvent);
+                string messageBody = JsonSerializer.Serialize(taskStatusUpdatedEvent);
                 var serviceBusMessage = new ServiceBusMessage(messageBody);
                 await taskCompletedEventPublisher.SendMessageAsync(serviceBusMessage);
 
-                logger.LogInformation("Task completed event published successfully: {Message}", messageBody);
+                logger.LogInformation("Task status updated event published successfully: {Message}", messageBody);
                 return;
             }
             catch (ServiceBusException ex) when (ex.IsTransient)
