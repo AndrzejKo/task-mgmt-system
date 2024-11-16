@@ -15,21 +15,19 @@ public class TaskRepository(TaskDbContext taskDbContext) : ITaskRepository
         return newTask;
     }
 
+    public async Task<Entities.Task?> GetTaskByIdAsync(int id)
+    {
+        return await taskDbContext.Tasks.FindAsync(id);
+    }
+
     public async Task<IEnumerable<Entities.Task>> GetTasksAsync()
     {
         return await taskDbContext.Tasks.ToListAsync();
     }
 
-    public async Task UpdateTaskStatus(int taskId, Entities.Status newStatus)
+    public async Task UpdateTaskAsync(Entities.Task task)
     {
-        var existingTask = await taskDbContext.Tasks.FindAsync(taskId);
-        if (existingTask == null)
-        {
-            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
-        }
-
-        existingTask.Status = newStatus;
-        taskDbContext.Tasks.Update(existingTask);
+        taskDbContext.Tasks.Update(task);
         await taskDbContext.SaveChangesAsync();
     }
 }

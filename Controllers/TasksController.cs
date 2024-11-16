@@ -8,7 +8,7 @@ namespace TaskManagerApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class TasksController(ILogger<WeatherForecastController> logger, ITaskService taskService, ServiceBusHandler serviceBusHandler) : ControllerBase
+public class TasksController(ILogger<TasksController> logger, ITaskService taskService, ServiceBusHandler serviceBusHandler) : ControllerBase
 {
     [HttpGet(Name = "GetTasks")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<ApiModels.TaskDto>))]
@@ -24,7 +24,8 @@ public class TasksController(ILogger<WeatherForecastController> logger, ITaskSer
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> PostTask(ApiModels.NewTaskDto newTask)
     {
-        var task = new Entities.Task(){
+        var task = new Entities.Task()
+        {
             Name = newTask.Name,
             Description = newTask.Description,
             AssignedTo = newTask.AssignedTo,
@@ -42,6 +43,7 @@ public class TasksController(ILogger<WeatherForecastController> logger, ITaskSer
         var updateRequest = new UpdateTaskStatusAction { TaskId = id, NewStatus = updateTaskStatus.NewStatus };
 
         await serviceBusHandler.SendTaskStatusUpdateActionAsync(updateRequest);
+
         return Ok();
     }
 }

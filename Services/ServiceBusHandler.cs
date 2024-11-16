@@ -91,7 +91,7 @@ public class ServiceBusHandler : BackgroundService
                     using var scope = serviceScopeFactory.CreateScope();
                     var taskService = scope.ServiceProvider.GetRequiredService<ITaskService>();
 
-                    await taskService.UpdateTaskStatus(updateRequest.TaskId, updateRequest.NewStatus);
+                    await taskService.UpdateTaskStatusAsync(updateRequest.TaskId, updateRequest.NewStatus);
 
                     if (updateRequest.NewStatus == Entities.Status.Completed)
                     {

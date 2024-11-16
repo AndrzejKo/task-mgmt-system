@@ -6,5 +6,5 @@ public interface ITaskService
 {
     Task<IEnumerable<Entities.Task>> GetTasksAsync();
     Task<Entities.Task> CreateTaskAsync(Entities.Task newTask);
-    Task UpdateTaskStatus(int taskId, Entities.Status newStatus);
+    Task UpdateTaskStatusAsync(int taskId, Entities.Status newStatus);
 }

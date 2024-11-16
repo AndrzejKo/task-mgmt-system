@@ -8,7 +8,8 @@ public static class TaskMapper
 {
     public static ApiModels.TaskDto MapTaskToTaskDto(Entities.Task task)
     {
-        return new ApiModels.TaskDto(){
+        return new ApiModels.TaskDto()
+        {
             Id = task.Id,
             Name = task.Name,
             Description = task.Description,
